@@ -748,7 +748,7 @@ public class FsCrawlerImplAllParametersTest extends AbstractMonoNodeITest {
         String password = "jappy98";
         String hostname = "ftp.pilato.fr";
 
-        Fs fs = startCrawlerDefinition().build();
+        Fs fs = startCrawlerDefinition("test_ftp").build();
         Server server = Server.builder()
                 .setHostname(hostname)
                 .setUsername(username)
