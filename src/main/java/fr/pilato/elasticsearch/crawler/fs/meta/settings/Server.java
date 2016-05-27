@@ -97,7 +97,7 @@ public class Server {
 
     public static class Builder {
         private String hostname = null;
-        private int port = PROTOCOL.SSH_PORT;
+        private int port = 0;
         private String username = null;
         private String password = null;
         private String protocol = PROTOCOL.LOCAL;

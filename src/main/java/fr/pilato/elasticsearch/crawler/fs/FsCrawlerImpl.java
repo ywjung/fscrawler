@@ -22,6 +22,7 @@ package fr.pilato.elasticsearch.crawler.fs;
 import fr.pilato.elasticsearch.crawler.fs.client.*;
 import fr.pilato.elasticsearch.crawler.fs.fileabstractor.FileAbstractModel;
 import fr.pilato.elasticsearch.crawler.fs.fileabstractor.FileAbstractor;
+import fr.pilato.elasticsearch.crawler.fs.fileabstractor.FileAbstractorFTP;
 import fr.pilato.elasticsearch.crawler.fs.fileabstractor.FileAbstractorFile;
 import fr.pilato.elasticsearch.crawler.fs.fileabstractor.FileAbstractorSSH;
 import fr.pilato.elasticsearch.crawler.fs.meta.doc.Attributes;
@@ -56,7 +57,9 @@ public class FsCrawlerImpl {
     public static final class PROTOCOL {
         public static final String LOCAL = "local";
         public static final String SSH = "ssh";
+        public static final String FTP = "ftp";
         public static final int SSH_PORT = 22;
+        public static final int FTP_PORT = 21;
     }
 
     private static final Logger logger = LogManager.getLogger(FsCrawlerImpl.class);
@@ -104,10 +107,11 @@ public class FsCrawlerImpl {
         // Checking protocol
         if (settings.getServer() != null) {
             if (!PROTOCOL.LOCAL.equals(settings.getServer().getProtocol()) &&
-                    !PROTOCOL.SSH.equals(settings.getServer().getProtocol())) {
+                    !PROTOCOL.SSH.equals(settings.getServer().getProtocol()) &&
+                    !PROTOCOL.FTP.equals(settings.getServer().getProtocol())) {
                 // Non supported protocol
                 logger.error(settings.getServer().getProtocol() + " is not supported yet. Please use " +
-                        PROTOCOL.LOCAL + " or " + PROTOCOL.SSH + ". Disabling crawler");
+                        PROTOCOL.LOCAL + ", " + PROTOCOL.SSH + " or " + PROTOCOL.FTP + ". Disabling crawler");
                 closed = true;
                 return;
             }
@@ -290,12 +294,23 @@ public class FsCrawlerImpl {
                 return new FileAbstractorFile(fsSettings);
             } else if (PROTOCOL.SSH.equals(fsSettings.getServer().getProtocol())) {
                 // Remote SSH FS
+                // If port is not set, we use the default port
+                if (fsSettings.getServer().getPort() == 0) {
+                    fsSettings.getServer().setPort(PROTOCOL.SSH_PORT);
+                }
                 return new FileAbstractorSSH(fsSettings);
+            } else if (PROTOCOL.FTP.equals(fsSettings.getServer().getProtocol())) {
+                // Remote FTP FS
+                // If port is not set, we use the default port
+                if (fsSettings.getServer().getPort() == 0) {
+                    fsSettings.getServer().setPort(PROTOCOL.FTP_PORT);
+                }
+                return new FileAbstractorFTP(fsSettings);
             }
 
             // Non supported protocol
             throw new RuntimeException(fsSettings.getServer().getProtocol() + " is not supported yet. Please use " +
-                    PROTOCOL.LOCAL + " or " + PROTOCOL.SSH);
+                    PROTOCOL.LOCAL + ", " + PROTOCOL.SSH + " or " + PROTOCOL.FTP);
         }
 
         private void addFilesRecursively(FileAbstractor path, String filepath, Instant lastScanDate)

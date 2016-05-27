@@ -278,7 +278,12 @@
             <artifactId>jsch</artifactId>
             <version>0.1.51</version>
         </dependency>
-
+        <!-- Dependency for FTP -->
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+            <version>3.5</version>
+        </dependency>
         <!-- For CLI -->
         <dependency>
             <groupId>com.beust</groupId>

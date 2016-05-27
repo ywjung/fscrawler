@@ -739,6 +739,28 @@ public class FsCrawlerImplAllParametersTest extends AbstractMonoNodeITest {
     }
 
     /**
+     * You have to adapt this test to your own system (login / password and FTP connexion)
+     * So this test is disabled by default
+     */
+    @Test // @Ignore
+    public void test_ftp() throws Exception {
+        String username = "u56895818";
+        String password = "jappy98";
+        String hostname = "ftp.pilato.fr";
+
+        Fs fs = startCrawlerDefinition().build();
+        Server server = Server.builder()
+                .setHostname(hostname)
+                .setUsername(username)
+                .setPassword(password)
+                .setProtocol(FsCrawlerImpl.PROTOCOL.FTP)
+                .build();
+        startCrawler(getCrawlerName(), fs, endCrawlerDefinition(getCrawlerName()), server);
+
+        countTestHelper(getCrawlerName(), null, 2);
+    }
+
+    /**
      * Test for #87: https://github.com/dadoonet/fscrawler/issues/87
      */
     @Test
