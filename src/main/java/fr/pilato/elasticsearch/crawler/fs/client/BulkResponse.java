@@ -26,7 +26,7 @@ import java.util.Arrays;
 
 public class BulkResponse {
 
-    private static final Logger logger = LogManager.getLogger(ElasticsearchClient.class);
+    private static final Logger logger = LogManager.getLogger(ElasticsearchClientImpl.class);
 
     private BulkItemResponse[] items;
 

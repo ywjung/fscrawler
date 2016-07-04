@@ -20,7 +20,7 @@
 package fr.pilato.elasticsearch.crawler.integration;
 
 import fr.pilato.elasticsearch.crawler.fs.client.BulkProcessor;
-import fr.pilato.elasticsearch.crawler.fs.client.ElasticsearchClient;
+import fr.pilato.elasticsearch.crawler.fs.client.ElasticsearchClientImpl;
 import fr.pilato.elasticsearch.crawler.fs.client.IndexRequest;
 import fr.pilato.elasticsearch.crawler.fs.client.SearchResponse;
 import fr.pilato.elasticsearch.crawler.fs.meta.settings.Elasticsearch;
@@ -41,7 +41,7 @@ import static org.junit.Assert.fail;
  */
 public class ElasticsearchClientMultiNodesITest extends AbstractMultiNodesITest {
 
-    private static ElasticsearchClient elasticsearchClient;
+    private static ElasticsearchClientImpl elasticsearchClient;
 
     @BeforeClass
     public static void startClient() throws IOException {
@@ -50,7 +50,7 @@ public class ElasticsearchClientMultiNodesITest extends AbstractMultiNodesITest 
             startNewNode(i, null);
         }
 
-        elasticsearchClient = ElasticsearchClient.builder().build();
+        elasticsearchClient = ElasticsearchClientImpl.builder().build();
         for (int i = 0; i < NUMBER_OF_NODES; i++) {
             elasticsearchClient
                     .addNode(Elasticsearch.Node.builder().setHost("127.0.0.1").setPort(HTTP_TEST_PORT + i).build());

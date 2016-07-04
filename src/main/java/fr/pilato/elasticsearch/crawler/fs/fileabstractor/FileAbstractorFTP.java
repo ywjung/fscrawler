@@ -21,14 +21,18 @@ package fr.pilato.elasticsearch.crawler.fs.fileabstractor;
 
 import fr.pilato.elasticsearch.crawler.fs.meta.settings.FsSettings;
 import fr.pilato.elasticsearch.crawler.fs.meta.settings.Server;
+import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
+import org.apache.commons.net.ftp.FTPFileFilter;
+import org.apache.commons.net.ftp.FTPFileFilters;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Objects;
 
 public class FileAbstractorFTP extends FileAbstractor<FTPFile> {
 
@@ -60,9 +64,10 @@ public class FileAbstractorFTP extends FileAbstractor<FTPFile> {
 
     @Override
     public Collection<FileAbstractModel> getFiles(String dir) throws Exception {
-        logger.debug("Listing local files from {}", dir);
+        logger.debug("Listing FTP files in {}", dir);
 
-        FTPFile[] files = ftp.listFiles();
+        ftp.changeWorkingDirectory(dir);
+        FTPFile[] files = ftp.listFiles(dir, file -> file != null && !file.getName().equals(".") && !file.getName().equals(".."));
 
         if (files == null) return null;
 
@@ -70,13 +75,19 @@ public class FileAbstractorFTP extends FileAbstractor<FTPFile> {
         // Iterate other files
         // We ignore here all files like . and ..
         for (FTPFile file : files) {
-            if (!".".equals(file.getName()) && !"..".equals(file.getName())) {
-                result.add(toFileAbstractModel(dir, file));
-            }
+            result.add(toFileAbstractModel(dir, file));
         }
 
         logger.debug("{} local files found", result.size());
         return result;
+    }
+
+    @Override
+    public boolean exists(String dir) throws Exception {
+        FTPFile[] files = ftp.listFiles(dir);
+        logger.debug("found {} files in dir {}", files != null ? files.length : 0, dir);
+        logger.trace("files: {}", (Object) files);
+        return files != null && files.length > 0;
     }
 
     @Override
@@ -90,13 +101,15 @@ public class FileAbstractorFTP extends FileAbstractor<FTPFile> {
     }
 
     public FTPClient openFTPConnection(Server server) throws Exception {
-        logger.debug("Opening FTP connection to {}@{}", server.getUsername(),
-                server.getHostname());
+        logger.debug("Opening FTP connection to {}@{}:{}", server.getUsername(),
+                server.getHostname(), server.getPort());
         FTPClient ftp = new FTPClient();
 
         try {
             ftp.connect(server.getHostname(), server.getPort());
             ftp.login(server.getUsername(), server.getPassword());
+            ftp.enterLocalPassiveMode();
+            ftp.setFileType(FTP.BINARY_FILE_TYPE);
         } catch (IOException e) {
             logger.warn("Cannot connect with FTP to {}@{}", server.getUsername(),
                     server.getHostname());

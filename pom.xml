@@ -324,6 +324,20 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
+        <!-- For FTP tests -->
+        <dependency>
+            <groupId>org.mockftpserver</groupId>
+            <artifactId>MockFtpServer</artifactId>
+            <version>2.6</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <distributionManagement>

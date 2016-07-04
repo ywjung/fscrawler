@@ -127,6 +127,10 @@ public class FsCrawlerImpl {
     }
 
     public void start() throws Exception {
+        start(null, null);
+    }
+
+    public void start(FSsCrawlerListener listener, ElasticsearchClient elasticsearchClient) throws Exception {
         if (logger.isInfoEnabled())
             logger.info("Starting FS crawler");
 
@@ -135,26 +139,30 @@ public class FsCrawlerImpl {
             return;
         }
 
-        try {
-            // Create an elasticsearch client
-            client = ElasticsearchClient.builder().build();
-
-            settings.getElasticsearch().getNodes().forEach(client::addNode);
-
-            client.createIndex(settings.getElasticsearch().getIndex(), true);
-        } catch (Exception e) {
-            logger.warn("failed to create index [{}], disabling crawler...", settings.getElasticsearch().getIndex());
-            throw e;
+        if (elasticsearchClient == null) {
+            try {
+                // Create an elasticsearch client with default implementation
+                ElasticsearchClientImpl defaultClientImpl = ElasticsearchClientImpl.builder().build();
+                settings.getElasticsearch().getNodes().forEach(defaultClientImpl::addNode);
+                this.client = defaultClientImpl;
+            } catch (Exception e) {
+                logger.warn("failed to create index [{}], disabling crawler...", settings.getElasticsearch().getIndex());
+                throw e;
+            }
+        } else {
+            this.client = elasticsearchClient;
         }
+
+        client.createIndex(settings.getElasticsearch().getIndex(), true);
 
         try {
             // If needed, we create the new mapping for files
             if (!settings.getFs().isJsonSupport()) {
-                ElasticsearchClient.pushMapping(client, settings.getElasticsearch().getIndex(), settings.getElasticsearch().getType(),
+                ElasticsearchClientImpl.pushMapping(client, settings.getElasticsearch().getIndex(), settings.getElasticsearch().getType(),
                         FsCrawlerUtil.buildFsFileMapping(true, settings.getFs().isStoreSource()));
             }
             // If needed, we create the new mapping for folders
-            ElasticsearchClient.pushMapping(client, settings.getElasticsearch().getIndex(), FsCrawlerUtil.INDEX_TYPE_FOLDER,
+            ElasticsearchClientImpl.pushMapping(client, settings.getElasticsearch().getIndex(), FsCrawlerUtil.INDEX_TYPE_FOLDER,
                     FsCrawlerUtil.buildFsFolderMapping());
         } catch (Exception e) {
             logger.warn("failed to create mapping for [{}/{}], disabling crawler...",
@@ -170,8 +178,13 @@ public class FsCrawlerImpl {
         // TODO May be do that in another place?
         fsSettingsFileHandler.write(settings);
 
+        // If the listener is not provided, we build the default one with default implementation
+        if (listener == null) {
+            listener = new FSsCrawlerListenerImpl(this.bulkProcessor);
+        }
+
         // Start the crawler thread
-        Thread thread = new Thread(new FSParser(settings));
+        Thread thread = new Thread(new FSParser(settings, listener));
         thread.start();
     }
 
@@ -188,13 +201,15 @@ public class FsCrawlerImpl {
         return closed;
     }
 
-    private class FSParser implements Runnable {
+    public class FSParser implements Runnable {
         private final FsSettings fsSettings;
+        private final FSsCrawlerListener listener;
 
         private ScanStatistic stats;
 
-        public FSParser(FsSettings fsSettings) {
+        public FSParser(FsSettings fsSettings, FSsCrawlerListener listener) {
             this.fsSettings = fsSettings;
+            this.listener = listener;
             logger.info("creating fs crawler thread [{}] for [{}] every [{}]", fsSettings.getName(),
                     fsSettings.getFs().getUrl(),
                     fsSettings.getFs().getUpdateRate());
@@ -228,10 +243,14 @@ public class FsCrawlerImpl {
                     // We only index the root directory once (first run)
                     // That means that we don't have a scanDate yet
                     if (scanDate == null) {
-                        indexRootDirectory(fsSettings.getFs().getUrl());
+                        indexDirectory(SignTool.sign(fsSettings.getFs().getUrl()),
+                                fsSettings.getFs().getUrl(),
+                                stats.getRootPathId(),
+                                null,
+                                SignTool.sign(fsSettings.getFs().getUrl()));
                     }
 
-                    addFilesRecursively(path, fsSettings.getFs().getUrl(), scanDate);
+                    addFilesRecursively(path, fsSettings.getFs().getUrl(), scanDate, listener);
 
                     updateFsJob(fsSettings.getName(), scanDatenew);
                 } catch (Exception e) {
@@ -313,7 +332,7 @@ public class FsCrawlerImpl {
                     PROTOCOL.LOCAL + ", " + PROTOCOL.SSH + " or " + PROTOCOL.FTP);
         }
 
-        private void addFilesRecursively(FileAbstractor path, String filepath, Instant lastScanDate)
+        private void addFilesRecursively(FileAbstractor path, String filepath, Instant lastScanDate, FSsCrawlerListener listener)
                 throws Exception {
 
             logger.debug("indexing [{}] content", filepath);
@@ -345,8 +364,14 @@ public class FsCrawlerImpl {
                         } else if (child.directory) {
                             logger.debug("  - folder: {}", filename);
                             fsFolders.add(filename);
-                            indexDirectory(stats, filename, child.fullpath.concat(File.separator));
-                            addFilesRecursively(path, child.fullpath.concat(File.separator), lastScanDate);
+                            indexDirectory(SignTool.sign(child.fullpath.concat(File.separator)),
+                                    filename,
+                                    stats.getRootPathId(),
+                                    FsCrawlerUtil.computeVirtualPathName(stats,
+                                            child.fullpath.concat(File.separator).substring(0, child.fullpath.concat(File.separator).lastIndexOf(File.separator))),
+                                    SignTool.sign(child.fullpath.concat(File.separator).substring(0, child.fullpath.concat(File.separator).lastIndexOf(File.separator))));
+
+                            addFilesRecursively(path, child.fullpath.concat(File.separator), lastScanDate, listener);
                         } else {
                             logger.debug("  - other: {}", filename);
                             logger.debug("Not a file nor a dir. Skipping {}", child.fullpath);
@@ -374,7 +399,7 @@ public class FsCrawlerImpl {
                         File file = new File(filepath, esfile);
 
                         logger.trace("Removing file [{}] in elasticsearch", esfile);
-                        esDelete(fsSettings.getElasticsearch().getIndex(), fsSettings.getElasticsearch().getType(),
+                        listener.esDelete(closed, fsSettings.getElasticsearch().getIndex(), fsSettings.getElasticsearch().getType(),
                                 SignTool.sign(file.getAbsolutePath()));
                         stats.removeFile();
                     }
@@ -531,7 +556,9 @@ public class FsCrawlerImpl {
                     } else {
                         id = SignTool.sign((new File(filepath, filename)).toString());
                     }
-                    esIndex(fsSettings.getElasticsearch().getIndex(),
+
+                    listener.esIndex(closed,
+                            fsSettings.getElasticsearch().getIndex(),
                             fsSettings.getElasticsearch().getType(),
                             id,
                             new String(data, "UTF-8"));
@@ -598,10 +625,10 @@ public class FsCrawlerImpl {
             }
 
             // We index
-            esIndex(fsSettings.getElasticsearch().getIndex(),
+            listener.esIndex(closed, fsSettings.getElasticsearch().getIndex(),
                     fsSettings.getElasticsearch().getType(),
                     SignTool.sign((new File(filepath, filename)).toString()),
-                    doc);
+                    DocParser.toJson(doc));
         }
 
         private void indexDirectory(String id, String name, String root, String virtual, String encoded)
@@ -612,34 +639,11 @@ public class FsCrawlerImpl {
             path.setRoot(root);
             path.setVirtual(virtual);
             path.setEncoded(encoded);
-            esIndex(fsSettings.getElasticsearch().getIndex(),
+            listener.esIndex(closed,
+                    fsSettings.getElasticsearch().getIndex(),
                     FsCrawlerUtil.INDEX_TYPE_FOLDER,
                     id,
-                    path);
-        }
-
-        /**
-         * Index a directory
-         */
-        private void indexDirectory(ScanStatistic stats, String filename, String filepath)
-                throws Exception {
-            indexDirectory(SignTool.sign(filepath),
-                    filename,
-                    stats.getRootPathId(),
-                    FsCrawlerUtil.computeVirtualPathName(stats,
-                            filepath.substring(0, filepath.lastIndexOf(File.separator))),
-                    SignTool.sign(filepath.substring(0, filepath.lastIndexOf(File.separator))));
-        }
-
-        /**
-         * Add the root directory as a folder
-         */
-        private void indexRootDirectory(String path) throws Exception {
-            indexDirectory(SignTool.sign(path),
-                    path,
-                    stats.getRootPathId(),
-                    null,
-                    SignTool.sign(path));
+                    PathParser.toJson(path));
         }
 
         /**
@@ -654,7 +658,8 @@ public class FsCrawlerImpl {
             Collection<String> listFile = getFileDirectory(fullPath);
 
             for (String esfile : listFile) {
-                esDelete(
+                listener.esDelete(
+                        closed,
                         fsSettings.getElasticsearch().getIndex(),
                         fsSettings.getElasticsearch().getType(),
                         SignTool.sign(fullPath.concat(File.separator).concat(esfile)));
@@ -666,48 +671,9 @@ public class FsCrawlerImpl {
                 removeEsDirectoryRecursively(fullPath, esfolder);
             }
 
-            esDelete(fsSettings.getElasticsearch().getIndex(), FsCrawlerUtil.INDEX_TYPE_FOLDER,
+            listener.esDelete(closed, fsSettings.getElasticsearch().getIndex(), FsCrawlerUtil.INDEX_TYPE_FOLDER,
                     SignTool.sign(fullPath));
 
-        }
-
-        /**
-         * Add to bulk an IndexRequest
-         */
-        private void esIndex(String index, String type, String id,
-                             Doc doc) throws Exception {
-            esIndex(index, type, id, DocParser.toJson(doc));
-        }
-
-        private void esIndex(String index, String type, String id, fr.pilato.elasticsearch.crawler.fs.meta.doc.Path path)
-                throws Exception {
-            esIndex(index, type, id, PathParser.toJson(path));
-        }
-
-        /**
-         * Add to bulk an IndexRequest in JSon format
-         */
-        private void esIndex(String index, String type, String id, String json) {
-            logger.debug("Indexing in ES " + index + ", " + type + ", " + id);
-            logger.trace("JSon indexed : {}", json);
-
-            if (!closed) {
-                bulkProcessor.add(new IndexRequest(index, type, id).source(json));
-            } else {
-                logger.warn("trying to add new file while closing crawler. Document [{}]/[{}]/[{}] has been ignored", index, type, id);
-            }
-        }
-
-        /**
-         * Add to bulk a DeleteRequest
-         */
-        private void esDelete(String index, String type, String id) {
-            logger.debug("Deleting from ES " + index + ", " + type + ", " + id);
-            if (!closed) {
-                bulkProcessor.add(new DeleteRequest(index, type, id));
-            } else {
-                logger.warn("trying to remove a file while closing crawler. Document [{}]/[{}]/[{}] has been ignored", index, type, id);
-            }
         }
     }
 
