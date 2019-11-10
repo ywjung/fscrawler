@@ -751,6 +751,25 @@ public class TikaDocParserTest extends DocParserTestCase {
         assertThat(doc.getFile().getContentType(), is("application/x-tika-ooxml-protected"));
     }
 
+    @Test
+    public void testPdfEncoding() throws IOException {
+        // We test document 1
+        Doc doc = extractFromFile("test-utf8-fscrawler.pdf");
+
+        // Content Type
+        assertThat(doc.getFile().getContentType(), containsString("application/pdf"));
+
+        // Meta data
+        assertThat(doc.getMeta().getAuthor(), is(notNullValue()));
+        assertThat(doc.getMeta().getDate(), is(localDateTimeToDate(LocalDateTime.of(2018, 7, 24, 16, 47, 41))));
+        assertThat(doc.getMeta().getKeywords(), not(emptyIterable()));
+        assertThat(doc.getMeta().getTitle(), containsString("Sindipetro"));
+
+        // Extracted content
+        assertThat(doc.getContent(), not(containsString("�")));
+    }
+
+
     private Doc extractFromFileExtension(String extension) throws IOException {
         FsSettings fsSettings = FsSettings.builder(getCurrentTestName())
                 .setFs(Fs.builder().setRawMetadata(true).build())
