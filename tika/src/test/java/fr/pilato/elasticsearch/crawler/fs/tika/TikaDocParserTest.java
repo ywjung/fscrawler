@@ -751,6 +751,17 @@ public class TikaDocParserTest extends DocParserTestCase {
         assertThat(doc.getFile().getContentType(), is("application/x-tika-ooxml-protected"));
     }
 
+    @Test
+    public void testSkipTika() throws IOException {
+        FsSettings fsSettings = FsSettings.builder(getCurrentTestName())
+                .setFs(Fs.builder().setSkipTika(true).build())
+                .build();
+        Doc doc = extractFromFile("issue-846.html", fsSettings);
+        assertThat(doc.getContent(), is("<!-- File: footer (copy).html -->\n" +
+                "<img src=\"{$src}\">\n"));
+    }
+
+
     private Doc extractFromFileExtension(String extension) throws IOException {
         FsSettings fsSettings = FsSettings.builder(getCurrentTestName())
                 .setFs(Fs.builder().setRawMetadata(true).build())
