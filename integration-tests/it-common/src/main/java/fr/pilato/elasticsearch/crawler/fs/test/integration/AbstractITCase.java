@@ -21,8 +21,6 @@ package fr.pilato.elasticsearch.crawler.fs.test.integration;
 
 import com.carrotsearch.randomizedtesting.RandomizedTest;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakLingering;
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
@@ -38,7 +36,6 @@ import fr.pilato.elasticsearch.crawler.fs.settings.Elasticsearch;
 import fr.pilato.elasticsearch.crawler.fs.settings.FsSettings;
 import fr.pilato.elasticsearch.crawler.fs.settings.ServerUrl;
 import fr.pilato.elasticsearch.crawler.fs.test.framework.AbstractFSCrawlerTestCase;
-import fr.pilato.elasticsearch.crawler.fs.test.framework.TestContainerThreadFilter;
 import org.apache.logging.log4j.Level;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.server.SshServer;
@@ -95,9 +92,7 @@ import static org.junit.Assume.assumeThat;
  *
  * All integration tests might be skipped if the cluster is not running
  */
-@ThreadLeakFilters(filters = {TestContainerThreadFilter.class})
-@ThreadLeakScope(ThreadLeakScope.Scope.SUITE)
-@ThreadLeakLingering(linger = 5000) // 5 sec lingering
+@ThreadLeakFilters(filters = {SshdThreadFilter.class})
 public abstract class AbstractITCase extends AbstractFSCrawlerTestCase {
 
     protected static Path metadataDir = null;

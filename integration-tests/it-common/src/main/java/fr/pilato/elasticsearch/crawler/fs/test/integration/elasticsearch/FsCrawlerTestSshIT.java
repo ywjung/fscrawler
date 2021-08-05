@@ -37,7 +37,7 @@ import java.io.IOException;
  */
 public class FsCrawlerTestSshIT extends AbstractFsCrawlerITCase {
 
-    private SshServer sshd;
+    private SshServer sshd = null;
 
     @Before
     public void setup() throws IOException, JSchException {

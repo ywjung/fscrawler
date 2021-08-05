@@ -61,7 +61,7 @@ import static org.hamcrest.Matchers.*;
  */
 public class WPSearchIT extends AbstractWorkplaceSearchITCase {
 
-    private SshServer sshd;
+    private SshServer sshd = null;
 
     @Before
     public void setup() throws IOException, JSchException {
