@@ -236,7 +236,7 @@ public class ElasticsearchClient implements IElasticsearchClient {
         // Cache the version and the major version
         version = document.read("$.version.number");
 //        majorVersion = extractMajorVersion(version);
-        majorVersion = 7;
+        majorVersion = 7; //
 
         logger.debug("get version returns {} and {} as the major version number", version, majorVersion);
         return version;

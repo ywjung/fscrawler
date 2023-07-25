@@ -58,7 +58,7 @@ import java.util.Set;
 import static org.apache.tika.langdetect.optimaize.OptimaizeLangDetector.getDefaultLanguageDetector;
 
 /**
- *
+ * a
  */
 public class TikaInstance {
 
