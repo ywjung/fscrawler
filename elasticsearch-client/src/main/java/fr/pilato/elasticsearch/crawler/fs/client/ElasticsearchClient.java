@@ -235,7 +235,8 @@ public class ElasticsearchClient implements IElasticsearchClient {
         DocumentContext document = parseJsonAsDocumentContext(response);
         // Cache the version and the major version
         version = document.read("$.version.number");
-        majorVersion = extractMajorVersion(version);
+//        majorVersion = extractMajorVersion(version);
+        majorVersion = 7;
 
         logger.debug("get version returns {} and {} as the major version number", version, majorVersion);
         return version;

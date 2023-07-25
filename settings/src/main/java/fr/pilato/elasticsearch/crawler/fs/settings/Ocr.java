@@ -35,6 +35,8 @@ public class Ocr {
     // Pdf OCR Strategy
     private String pdfStrategy = "ocr_and_text";
 
+    private boolean preserveInterwordSpacing = false;
+
     public static Builder builder() {
         return new Builder();
     }
@@ -47,6 +49,8 @@ public class Ocr {
         private String outputType = null;
         private boolean enabled = true;
         private String pdfStrategy = "ocr_and_text";
+
+        private boolean preserveInterwordSpacing = false;
 
         public Builder setLanguage(String language) {
             this.language = language;
@@ -82,8 +86,14 @@ public class Ocr {
             return this;
         }
 
+
+        public Builder setPreserveInterwordSpacing(boolean preserveInterwordSpacing) {
+            this.preserveInterwordSpacing = preserveInterwordSpacing;
+            return this;
+        }
+
         public Ocr build() {
-            return new Ocr(language, path, dataPath, outputType, pdfStrategy, enabled);
+            return new Ocr(language, path, dataPath, outputType, pdfStrategy, enabled, preserveInterwordSpacing);
         }
 
     }
@@ -92,13 +102,14 @@ public class Ocr {
 
     }
 
-    private Ocr(String language, String path, String dataPath, String outputType, String pdfStrategy, boolean enabled) {
+    private Ocr(String language, String path, String dataPath, String outputType, String pdfStrategy, boolean enabled, boolean preserveInterwordSpacing) {
         this.language = language;
         this.path = path;
         this.dataPath = dataPath;
         this.outputType = outputType;
         this.pdfStrategy = pdfStrategy;
         this.enabled = enabled;
+        this.preserveInterwordSpacing = preserveInterwordSpacing;
     }
 
     public String getLanguage() {
@@ -157,6 +168,9 @@ public class Ocr {
         this.pdfStrategy = pdfStrategy;
     }
 
+    public boolean getPreserveInterwordSpacing() {return preserveInterwordSpacing;}
+
+    public void setPreserveInterwordSpacing(boolean preserveInterwordSpacing) {this.preserveInterwordSpacing = preserveInterwordSpacing;}
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -167,12 +181,13 @@ public class Ocr {
                 Objects.equals(path, ocr.path) &&
                 Objects.equals(dataPath, ocr.dataPath) &&
                 Objects.equals(outputType, ocr.outputType) &&
-                Objects.equals(pdfStrategy, ocr.pdfStrategy);
+                Objects.equals(pdfStrategy, ocr.pdfStrategy) &&
+                Objects.equals(preserveInterwordSpacing, ocr.preserveInterwordSpacing);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(language, path, dataPath, outputType, enabled, pdfStrategy);
+        return Objects.hash(language, path, dataPath, outputType, enabled, pdfStrategy, preserveInterwordSpacing);
     }
 
     @Override
@@ -183,6 +198,7 @@ public class Ocr {
                 ", outputType='" + outputType + '\'' +
                 ", enabled=" + enabled +
                 ", pdfStrategy='" + pdfStrategy + '\'' +
+                ", preserveInterwordSpacing='" + preserveInterwordSpacing +
                 '}';
     }
 }

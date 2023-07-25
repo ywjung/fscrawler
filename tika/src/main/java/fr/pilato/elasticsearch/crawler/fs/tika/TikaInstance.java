@@ -118,7 +118,7 @@ public class TikaInstance {
                 // PDF content might be extracted multiple times.
                 pdfParser.getPDFParserConfig().setExtractBookmarksText(false);
 
-                 if (ocrActivated) {
+                if (ocrActivated) {
                     logger.debug("OCR is activated.");
                     ocrParser = new TesseractOCRParser();
                     if (fs.getOcr().getPath() != null) {
@@ -178,6 +178,8 @@ public class TikaInstance {
             if (ocrActivated) {
                 logger.debug("OCR is activated so we need to configure Tesseract in case we have specific settings.");
                 TesseractOCRConfig config = new TesseractOCRConfig();
+                logger.debug("Tesseract PreserveInterwordSpacing set to [{}].", fs.getOcr().getPreserveInterwordSpacing());
+                config.setPreserveInterwordSpacing(fs.getOcr().getPreserveInterwordSpacing());
                 logger.debug("Tesseract Language set to [{}].", fs.getOcr().getLanguage());
                 config.setLanguage(fs.getOcr().getLanguage());
                 if (fs.getOcr().getOutputType() != null) {
